@@ -1,22 +1,104 @@
-let S={view:'overview',data:null,contact:null,draft:null};
-const $=s=>document.querySelector(s), E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-async function api(p,o={}){try{let r=await fetch(p,o),j=await r.json();return r.ok?j:null}catch{return null}}
-async function load(){S.data=await api('/api/state');if(!S.data)S.data={settings:{mockMode:true},contacts:[{id:'c1',name:'Demo Customer',phone:'919999999999',labels:['new'],notes:'Demo'}],labels:[{id:'new',name:'New Customer'},{id:'paid',name:'Paid'}],messages:[{id:'1',contactId:'c1',direction:'in',text:'Hi GAMAV',timestamp:new Date().toISOString()},{id:'2',contactId:'c1',direction:'out',text:'Welcome!',timestamp:new Date().toISOString()}],bots:[{id:'b1',name:'Welcome Bot',trigger:'hi',enabled:true,nodes:[]}],templates:[],campaigns:[]};render()}
-const nav=[['overview','⌂ Overview'],['inbox','▣ Inbox'],['contacts','◎ Contacts'],['bots','⌘ Bot Builder'],['templates','▤ Templates'],['campaigns','◉ Campaigns'],['analytics','◌ Analytics'],['developers','⌘ Developers'],['settings','⚙ Settings']];
-function shell(title,sub,html){return `<div class="shell"><aside class="side"><div class="brand"><div class="mark">G</div><div><b>GAMAV</b><small>WhatsApp</small></div></div><nav>${nav.map(x=>`<button class="${S.view===x[0]?'active':''}" data-v="${x[0]}">${x[1]}</button>`).join('')}</nav><div class="status">● WhatsApp ${S.data.settings.mockMode?'Mock':'Live'}</div></aside><main class="main"><header class="top"><h1>${title}</h1><p>${sub}</p></header><section id="content">${html}</section></main></div>`}
-function render(){let x={overview:['Overview','WhatsApp-only automation control center',overview],inbox:['Inbox','Conversations and human handoff',inbox],contacts:['Contacts','CRM and labels',contacts],bots:['Bot Builder','Custom WhatsApp automation flows',bots],templates:['Templates','Reusable message templates',templates],campaigns:['Campaigns','Targeted messaging',campaigns],analytics:['Analytics','Conversation performance',analytics],developers:['Developers','API and webhook controls',developers],settings:['Settings','Workspace and API mode',settings]}[S.view];$('#app').innerHTML=shell(x[0],x[1],x[2]());bind()}
-function overview(){let d=S.data;return `<div class="hero"><span class="tag">WHATSAPP ONLY</span><h2>Build your own WhatsApp automation platform.</h2><p class="muted">Custom text, image URL, buttons, URL actions, variables, labels, inbox, CRM, bot flows, templates, campaigns, webhooks and a server-side Meta adapter.</p><div class="row"><button class="btn primary" data-go="bots">Open Bot Builder</button><button class="btn" data-go="developers">Developer Console</button></div></div><div class="grid cards" style="margin-top:14px">${[['Contacts',d.contacts.length],['Messages',d.messages.length],['Active Bots',d.bots.filter(b=>b.enabled).length],['Labels',d.labels.length]].map(a=>`<div class="card"><div class="muted">${a[0]}</div><div class="big">${a[1]}</div></div>`).join('')}</div>`}
-function inbox(){let cs=S.data.contacts;S.contact=S.contact||cs[0]?.id;let c=cs.find(x=>x.id===S.contact)||cs[0];let ms=S.data.messages.filter(m=>m.contactId===c?.id);return `<div class="card" style="padding:0;overflow:hidden"><div class="inbox"><div class="list">${cs.map(x=>`<div class="item ${x.id===S.contact?'active':''}" data-c="${x.id}"><b>${E(x.name)}</b><div class="muted">${E(x.phone)}</div></div>`).join('')}</div><div class="thread"><div class="head"><b>${E(c?.name||'')}</b><div class="muted">${E(c?.phone||'')}</div></div><div class="messages">${ms.map(m=>`<div class="bubble ${m.direction==='out'?'out':'in'}">${E(m.text||m.type)}<div class="muted" style="font-size:9px">${new Date(m.timestamp).toLocaleTimeString()}</div></div>`).join('')}</div><form class="compose" id="send"><input name="text" placeholder="Type message…"><button class="btn primary">Send</button></form></div></div></div>`}
-function contacts(){return `<div class="row" style="justify-content:space-between"><h3>Customer CRM</h3><button class="btn primary" id="addC">Add contact</button></div><div class="card"><table class="table"><tr><th>Name</th><th>Phone</th><th>Labels</th><th>Notes</th></tr>${S.data.contacts.map(c=>`<tr><td>${E(c.name)}</td><td>${E(c.phone)}</td><td>${(c.labels||[]).map(id=>`<span class="tag">${E(S.data.labels.find(l=>l.id===id)?.name||id)}</span>`).join('')}</td><td>${E(c.notes)}</td></tr>`).join('')}</table></div><div class="card" style="margin-top:14px"><b>Labels</b><div style="margin-top:9px">${S.data.labels.map(l=>`<span class="tag">${E(l.name)}</span>`).join(' ')} <button class="btn" id="addL">+ Add</button></div></div>`}
-function bots(){let b=S.draft||S.data.bots[0]||{id:'draft',name:'New Bot',enabled:true,trigger:'hi',nodes:[]};S.draft=b;return `<div class="builder card"><div class="palette"><b>NODE PALETTE</b>${[['message','Text'],['image','Image URL'],['buttons','Buttons/URL'],['condition','Condition'],['label','Assign Label'],['wait','Wait'],['webhook','API/Webhook'],['handoff','Human']].map(a=>`<button class="btn nodeAdd" data-t="${a[0]}">+ ${a[1]}</button>`).join('')}</div><div class="canvas"><div class="card" style="position:sticky;top:10px;left:10px;z-index:2;width:300px;background:#071019ee"><div class="field"><label>Bot name</label><input id="bn" value="${E(b.name)}"></div><div class="field"><label>Trigger keywords</label><input id="bt" value="${E(b.trigger)}"></div><button class="btn primary" id="saveB">Save Bot</button> <button class="btn" id="testB">Test</button></div>${(b.nodes||[]).map(n=>`<div class="node" data-n="${n.id}" style="left:${n.x||360}px;top:${n.y||150}px"><div class="type">${E(n.type)}</div><b>${E(n.title||n.type)}</b><div class="prev">${E(JSON.stringify(n.data||{}))}</div><button class="btn" data-edit="${n.id}">Edit JSON</button> <button class="btn" data-del="${n.id}">Delete</button></div>`).join('')}</div></div>`}
-function templates(){return `<div class="row" style="justify-content:space-between"><h3>Templates</h3><button class="btn primary" onclick="alert('Add Meta-approved template payloads in the backend for production.')">Create template</button></div><div class="grid cards">${S.data.templates.map(t=>`<div class="card"><b>${E(t.name)}</b><div class="muted">${E(t.category)} • ${E(t.language)} • ${E(t.status)}</div><p>${E(t.body)}</p></div>`).join('')||'<div class="card">No templates yet.</div>'}</div>`}
-function campaigns(){return `<div class="grid two"><div class="card"><h3>Create Campaign</h3><div class="field"><label>Name</label><input id="cn" placeholder="Weekend Offer"></div><div class="field"><label>Label</label><select id="cl">${S.data.labels.map(l=>`<option value="${l.id}">${E(l.name)}</option>`).join('')}</select></div><div class="field"><label>Message</label><textarea id="ct"></textarea></div><button class="btn primary" id="createCamp">Save Draft</button></div><div class="card"><h3>Saved campaigns</h3>${S.data.campaigns.map(c=>`<p>${E(c.name)} — ${E(c.status)}</p>`).join('')||'<span class="muted">None</span>'}</div></div>`}
-function analytics(){return `<div class="grid cards">${[['Inbound',S.data.messages.filter(m=>m.direction==='in').length],['Outbound',S.data.messages.filter(m=>m.direction==='out').length],['Bots',S.data.bots.length],['Mode',S.data.settings.mockMode?'Mock':'Live']].map(a=>`<div class="card"><div class="muted">${a[0]}</div><div class="big">${a[1]}</div></div>`).join('')}</div><div class="card" style="margin-top:14px"><h3>Health</h3><p>Bot engine ✅ • Webhook receiver ✅ • Meta adapter ${S.data.settings.mockMode?'ready in mock mode':'enabled'}</p></div>`}
-function developers(){return `<div class="grid two"><div class="card"><h3>Send API</h3><div class="code">POST /api/messages/send\n\n{\n  "phone":"919999999999",\n  "type":"text",\n  "text":"Hello from GAMAV"\n}</div><h3 style="margin-top:18px">Webhook</h3><div class="code">GET  /webhook/whatsapp\nPOST /webhook/whatsapp</div></div><div class="card"><h3>Production</h3><div class="notice">GitHub Pages cannot run the Node backend or hold private Meta credentials. Deploy this backend on a public HTTPS server for real WhatsApp webhooks.</div><p class="muted">Environment: WHATSAPP_GRAPH_VERSION, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_VERIFY_TOKEN.</p></div></div>`}
-function settings(){return `<div class="grid two"><div class="card"><h3>Workspace</h3><div class="field"><label>Workspace name</label><input id="wn" value="GAMAV WhatsApp"></div><div class="field"><label>Mode</label><select id="wm"><option value="true" ${S.data.settings.mockMode?'selected':''}>Mock / local</option><option value="false" ${!S.data.settings.mockMode?'selected':''}>Live Meta adapter</option></select></div><button class="btn primary" id="saveS">Save</button></div><div class="card"><h3>Meta checklist</h3><p>1. Meta Business assets</p><p>2. WhatsApp Business Account + phone</p><p>3. Server-side Cloud API credentials</p><p>4. Public HTTPS webhook</p><p>5. Test inbound/outbound</p></div></div>`}
-function typeLabel(t){return({message:'Text Message',image:'Image URL',buttons:'Buttons / URL',condition:'Condition',label:'Assign Label',wait:'Wait',webhook:'API / Webhook',handoff:'Human Handoff'})[t]||t}
-function bind(){document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{S.view=b.dataset.v;render()});document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{S.view=b.dataset.go;render()});document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{S.contact=b.dataset.c;render()});$('#send')?.addEventListener('submit',async e=>{e.preventDefault();let c=S.data.contacts.find(x=>x.id===S.contact),t=e.target.text.value.trim();if(!c||!t)return;let r=await api('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:c.phone,type:'text',text:t})});if(r)S.data=await api('/api/state');e.target.reset();render()});$('#addC')?.addEventListener('click',()=>{let n=prompt('Name?'),p=prompt('Phone with country code?');if(n&&p){S.data.contacts.push({id:'c_'+Date.now(),name:n,phone:p,labels:['new'],notes:''});render()}});$('#addL')?.addEventListener('click',async()=>{let n=prompt('Label name?');if(!n)return;let r=await api('/api/labels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n})});if(r)S.data.labels.push(r);render()});document.querySelectorAll('.nodeAdd').forEach(b=>b.onclick=()=>addNode(b.dataset.t));document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editNode(b.dataset.edit));document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{S.draft.nodes=S.draft.nodes.filter(n=>n.id!==b.dataset.del);render()});$('#saveB')?.addEventListener('click',saveBot);$('#testB')?.addEventListener('click',async()=>{let c=S.data.contacts[0],r=await api('/api/simulate/inbound',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:c.phone,name:c.name,text:(S.draft.trigger||'hi').split(',')[0]})});if(r)S.data=await api('/api/state');S.view='inbox';render()});$('#createCamp')?.addEventListener('click',async()=>{let x={name:$('#cn').value||'Campaign',labelId:$('#cl').value,text:$('#ct').value};let r=await api('/api/campaigns',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)});S.data.campaigns.push(r||x);render()});$('#saveS')?.addEventListener('click',async()=>{let x={mockMode:$('#wm').value==='true'};let r=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)});S.data.settings=r||x;render()})}
-function addNode(t){let b=S.draft,id='n_'+Date.now(),n={id,type:t,x:360+(b.nodes.length%3)*270,y:170+Math.floor(b.nodes.length/3)*210,title:typeLabel(t),data:{}};n.data=t==='message'?{text:'Hello {{customer_name}} 👋'}:t==='image'?{imageUrl:'https://example.com/image.jpg',caption:'GAMAV'}:t==='buttons'?{text:'Choose an option',buttons:[{title:'Products',action:'reply',value:'products'},{title:'Website',action:'url',value:'https://example.com'}]}:t==='condition'?{expression:'{{label}} == VIP'}:t==='label'?{label:'vip'}:{};b.nodes.push(n);render()}
-function editNode(id){let n=S.draft.nodes.find(x=>x.id===id),v=prompt('Node data JSON',JSON.stringify(n.data||{},null,2));if(v===null)return;try{n.data=JSON.parse(v)}catch{alert('Invalid JSON')}render()}
-async function saveBot(){S.draft.name=$('#bn').value;S.draft.trigger=$('#bt').value;let r=S.draft.id?.startsWith('b_')?await api('/api/bots/'+S.draft.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(S.draft)}):await api('/api/bots',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S.draft)});if(r){S.draft=r;S.data.bots=S.data.bots.filter(x=>x.id!==r.id);S.data.bots.push(r);alert('Bot saved')}else alert('Static demo: saved in browser state');render()}
-load();
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const state={nodes:[],edges:[],selected:null,zoom:1,nextId:1,panX:0,panY:0};
+const defs={
+trigger:{title:"Trigger",icon:"⚡",body:"Keyword / event",fields:{keyword:"hi",mode:"keyword"}},
+text:{title:"Send Text",icon:"💬",body:"Hello {{name}}",fields:{text:"Hello {{name}}"}},
+image:{title:"Image",icon:"🖼",body:"Image URL",fields:{url:"https://example.com/image.jpg",caption:""}},
+buttons:{title:"Buttons / URL",icon:"🔘",body:"Choose an option",fields:{text:"Choose an option",buttons:"Yes|No|Visit Website",urls:"||https://example.com"}},
+list:{title:"List",icon:"☷",body:"Menu list",fields:{text:"Select an item",rows:"Option 1|Option 2|Option 3"}},
+condition:{title:"Condition",icon:"◇",body:"{{value}} equals...",fields:{variable:"value",operator:"equals",value:"yes"}},
+input:{title:"User Input",icon:"⌨",body:"Wait for customer reply",fields:{variable:"name",prompt:"What is your name?"}},
+variable:{title:"Set Variable",icon:"≡",body:"Set variable",fields:{name:"status",value:"new"}},
+label:{title:"Assign Label",icon:"🏷",body:"Add customer label",fields:{label:"VIP"}},
+wait:{title:"Wait",icon:"◷",body:"5 seconds",fields:{seconds:"5"}},
+api:{title:"API / Webhook",icon:"⇄",body:"POST /endpoint",fields:{method:"POST",url:"https://example.com/webhook",body:'{"id":"{{id}}"}'}},
+template:{title:"Template",icon:"▤",body:"Approved template",fields:{name:"welcome",language:"en"}},
+human:{title:"Human Handoff",icon:"👤",body:"Assign to agent",fields:{team:"Support"}},
+end:{title:"End",icon:"⏹",body:"Flow complete",fields:{}}
+};
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1800)}
+function addNode(type,x=150+state.nodes.length*25,y=150+state.nodes.length*25){
+ const d=defs[type]; const n={id:"n"+state.nextId++,type,x,y,fields:structuredClone(d.fields)};
+ state.nodes.push(n); state.selected=n.id; render(); return n;
+}
+function removeNode(id){state.nodes=state.nodes.filter(n=>n.id!==id);state.edges=state.edges.filter(e=>e.from!==id&&e.to!==id);state.selected=null;render()}
+function nodeBy(id){return state.nodes.find(n=>n.id===id)}
+function render(){
+ const holder=$("#nodes"); holder.innerHTML="";
+ state.nodes.forEach(n=>{
+   const d=defs[n.type], el=document.createElement("div"); el.className="node"+(state.selected===n.id?" selected":"");el.dataset.id=n.id;
+   el.style.left=n.x+"px";el.style.top=n.y+"px";
+   const summary=summaryFor(n);
+   el.innerHTML=`<div class="nodeHead"><span class="nodeType">${d.icon} ${d.title}</span><span style="color:#587181">${n.id}</span></div><div class="nodeBody">${esc(summary)}</div>`;
+   if(n.type!=="trigger") el.innerHTML+=`<i class="port in" data-port="in"></i>`;
+   if(n.type==="condition") el.innerHTML+=`<i class="port out" data-port="out" data-branch="yes" title="YES"></i><i class="port out" data-port="out" data-branch="no" title="NO"></i>`;
+   else if(n.type!=="end") el.innerHTML+=`<i class="port out" data-port="out"></i>`;
+   holder.appendChild(el); wireDrag(el,n);
+ });
+ drawEdges(); renderInspector();
+}
+function summaryFor(n){const f=n.fields;switch(n.type){
+case"trigger":return `When: ${f.keyword||"any message"}`;
+case"text":return f.text||"Text message";
+case"image":return f.url||"Image URL";
+case"buttons":return `${f.text||"Buttons"} • ${(f.buttons||"").split("|").join(" / ")}`;
+case"condition":return `IF {{${f.variable}}} ${f.operator} "${f.value}"`;
+case"input":return `Save reply → {{${f.variable}}}`;
+case"variable":return `{{${f.name}}} = ${f.value}`;
+case"label":return `Label: ${f.label}`;
+case"wait":return `${f.seconds||0} seconds`;
+case"api":return `${f.method} ${f.url}`;
+case"template":return `${f.name} (${f.language})`;
+case"human":return `Team: ${f.team}`;
+default:return dflt(n);
+}}
+function dflt(n){return defs[n.type].body}
+function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]))}
+function wireDrag(el,n){
+ let sx,sy,ox,oy,moving=false;
+ el.addEventListener("pointerdown",e=>{if(e.target.classList.contains("port"))return;sx=e.clientX;sy=e.clientY;ox=n.x;oy=n.y;moving=true;el.setPointerCapture(e.pointerId);state.selected=n.id;});
+ el.addEventListener("pointermove",e=>{if(!moving)return;n.x=ox+(e.clientX-sx)/state.zoom;n.y=oy+(e.clientY-sy)/state.zoom;el.style.left=n.x+"px";el.style.top=n.y+"px";drawEdges();});
+ el.addEventListener("pointerup",()=>{moving=false;renderInspector()});
+ el.addEventListener("click",e=>{if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)<5){state.selected=n.id;render()}});
+ el.querySelectorAll(".port.out").forEach(p=>p.addEventListener("pointerdown",e=>startConnect(e,n,p.dataset.branch||"default")));
+ el.querySelectorAll(".port.in").forEach(p=>p.addEventListener("pointerup",e=>finishConnect(e,n)));
+}
+let connection=null;
+function startConnect(e,n,branch){e.stopPropagation();connection={from:n.id,branch};document.body.style.cursor="crosshair"}
+function finishConnect(e,n){e.stopPropagation();if(connection&&connection.from!==n.id){state.edges.push({from:connection.from,to:n.id,branch:connection.branch});toast("Nodes connected ✓");}connection=null;document.body.style.cursor="";render()}
+document.addEventListener("pointerup",e=>{if(connection){connection=null;document.body.style.cursor=""}})
+function drawEdges(){
+ const svg=$("#edges");svg.innerHTML="";
+ state.edges.forEach(edge=>{const a=nodeBy(edge.from),b=nodeBy(edge.to);if(!a||!b)return;
+  const x1=a.x+235,y1=a.y+47+(edge.branch==="yes"?-15:edge.branch==="no"?18:0),x2=b.x,y2=b.y+47;
+  const dx=Math.max(55,(x2-x1)*.5);const path=`M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+  svg.innerHTML+=`<path class="edgeHit" d="${path}" data-edge="${edge.from}:${edge.to}:${edge.branch}"/><path class="edge" d="${path}"/>`;
+ });
+ $$(".edgeHit").forEach(e=>e.addEventListener("dblclick",()=>{const [f,t,b]=e.dataset.edge.split(":");state.edges=state.edges.filter(x=>!(x.from===f&&x.to===t&&x.branch===b));drawEdges();toast("Connection removed")}));
+}
+function renderInspector(){
+ const n=nodeBy(state.selected), empty=$("#emptyInspector"), form=$("#inspectorForm");
+ if(!n){empty.hidden=false;form.hidden=true;return}
+ empty.hidden=true;form.hidden=false;const d=defs[n.type];
+ let html=`<div style="font-size:18px;font-weight:800;margin-bottom:4px">${d.icon} ${d.title}</div><div style="font-size:11px;color:#637c8b;margin-bottom:12px">Node ID: ${n.id}</div>`;
+ Object.entries(n.fields).forEach(([k,v])=>{
+   const label=k.replace(/^\w/,x=>x.toUpperCase()).replaceAll("_"," ");
+   const isLong=String(v).length>55||k==="text"||k==="body"||k==="prompt";
+   html+=`<div class="field"><label>${label}</label>${isLong?`<textarea data-field="${k}">${esc(v)}</textarea>`:`<input data-field="${k}" value="${esc(v)}">`}</div>`;
+ });
+ if(n.type==="condition")html+=`<div class="field"><label>Connections</label><div style="font-size:11px;color:#6f8896">Blue = YES • Orange = NO</div></div>`;
+ html+=`<div class="inspectorActions"><button id="deleteNode" class="topActions button danger">Delete</button></div>`;
+ form.innerHTML=html;
+ form.querySelectorAll("[data-field]").forEach(inp=>inp.addEventListener("input",()=>{n.fields[inp.dataset.field]=inp.value;render()}));
+ $("#deleteNode").onclick=()=>removeNode(n.id);
+}
+$$(".addNode").forEach(b=>b.addEventListener("click",()=>addNode(b.dataset.type)));
+$("#saveBtn").onclick=()=>{localStorage.setItem("gamavFlow",JSON.stringify(state));toast("Bot saved locally ✓")};
+$("#loadBtn").onclick=()=>{const s=localStorage.getItem("gamavFlow");if(!s)return toast("No saved bot found");Object.assign(state,JSON.parse(s));render();toast("Bot loaded ✓")};
+$("#newBtn").onclick=()=>{if(confirm("Start a new bot?")){state.nodes=[];state.edges=[];state.selected=null;state.nextId=1;addNode("trigger",160,180);addNode("text",470,180);render();}};
+$("#testBtn").onclick=()=>{const trigger=state.nodes.find(n=>n.type==="trigger");toast(trigger?`Test started: "${trigger.fields.keyword}"`:"Add a Trigger first")};
+$("#zoomIn").onclick=()=>zoom(1.1);$("#zoomOut").onclick=()=>zoom(.9);$("#fitBtn").onclick=()=>{state.zoom=1;render();};
+function zoom(v){state.zoom=Math.max(.5,Math.min(1.7,state.zoom*v));$("#canvas").style.transform=`scale(${state.zoom})`;$("#zoomLabel").textContent=Math.round(state.zoom*100)+"%";drawEdges()}
+$("#canvasWrap").addEventListener("wheel",e=>{if(e.ctrlKey){e.preventDefault();zoom(e.deltaY<0?1.1:.9)}},{passive:false});
+function init(){const saved=localStorage.getItem("gamavFlow");if(saved){try{Object.assign(state,JSON.parse(saved))}catch{}}if(!state.nodes.length){addNode("trigger",130,160);const t=addNode("text",440,160);state.edges.push({from:"n1",to:t.id,branch:"default"});const c=addNode("condition",750,160);state.edges.push({from:t.id,to:c.id,branch:"default"});addNode("human",1080,110);addNode("end",1080,300)}render()}
+init();
