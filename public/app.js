@@ -1,104 +1,68 @@
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const state={nodes:[],edges:[],selected:null,zoom:1,nextId:1,panX:0,panY:0};
-const defs={
-trigger:{title:"Trigger",icon:"⚡",body:"Keyword / event",fields:{keyword:"hi",mode:"keyword"}},
-text:{title:"Send Text",icon:"💬",body:"Hello {{name}}",fields:{text:"Hello {{name}}"}},
-image:{title:"Image",icon:"🖼",body:"Image URL",fields:{url:"https://example.com/image.jpg",caption:""}},
-buttons:{title:"Buttons / URL",icon:"🔘",body:"Choose an option",fields:{text:"Choose an option",buttons:"Yes|No|Visit Website",urls:"||https://example.com"}},
-list:{title:"List",icon:"☷",body:"Menu list",fields:{text:"Select an item",rows:"Option 1|Option 2|Option 3"}},
-condition:{title:"Condition",icon:"◇",body:"{{value}} equals...",fields:{variable:"value",operator:"equals",value:"yes"}},
-input:{title:"User Input",icon:"⌨",body:"Wait for customer reply",fields:{variable:"name",prompt:"What is your name?"}},
-variable:{title:"Set Variable",icon:"≡",body:"Set variable",fields:{name:"status",value:"new"}},
-label:{title:"Assign Label",icon:"🏷",body:"Add customer label",fields:{label:"VIP"}},
-wait:{title:"Wait",icon:"◷",body:"5 seconds",fields:{seconds:"5"}},
-api:{title:"API / Webhook",icon:"⇄",body:"POST /endpoint",fields:{method:"POST",url:"https://example.com/webhook",body:'{"id":"{{id}}"}'}},
-template:{title:"Template",icon:"▤",body:"Approved template",fields:{name:"welcome",language:"en"}},
-human:{title:"Human Handoff",icon:"👤",body:"Assign to agent",fields:{team:"Support"}},
-end:{title:"End",icon:"⏹",body:"Flow complete",fields:{}}
-};
-function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1800)}
-function addNode(type,x=150+state.nodes.length*25,y=150+state.nodes.length*25){
- const d=defs[type]; const n={id:"n"+state.nextId++,type,x,y,fields:structuredClone(d.fields)};
- state.nodes.push(n); state.selected=n.id; render(); return n;
-}
-function removeNode(id){state.nodes=state.nodes.filter(n=>n.id!==id);state.edges=state.edges.filter(e=>e.from!==id&&e.to!==id);state.selected=null;render()}
-function nodeBy(id){return state.nodes.find(n=>n.id===id)}
-function render(){
- const holder=$("#nodes"); holder.innerHTML="";
- state.nodes.forEach(n=>{
-   const d=defs[n.type], el=document.createElement("div"); el.className="node"+(state.selected===n.id?" selected":"");el.dataset.id=n.id;
-   el.style.left=n.x+"px";el.style.top=n.y+"px";
-   const summary=summaryFor(n);
-   el.innerHTML=`<div class="nodeHead"><span class="nodeType">${d.icon} ${d.title}</span><span style="color:#587181">${n.id}</span></div><div class="nodeBody">${esc(summary)}</div>`;
-   if(n.type!=="trigger") el.innerHTML+=`<i class="port in" data-port="in"></i>`;
-   if(n.type==="condition") el.innerHTML+=`<i class="port out" data-port="out" data-branch="yes" title="YES"></i><i class="port out" data-port="out" data-branch="no" title="NO"></i>`;
-   else if(n.type!=="end") el.innerHTML+=`<i class="port out" data-port="out"></i>`;
-   holder.appendChild(el); wireDrag(el,n);
- });
- drawEdges(); renderInspector();
-}
-function summaryFor(n){const f=n.fields;switch(n.type){
-case"trigger":return `When: ${f.keyword||"any message"}`;
-case"text":return f.text||"Text message";
-case"image":return f.url||"Image URL";
-case"buttons":return `${f.text||"Buttons"} • ${(f.buttons||"").split("|").join(" / ")}`;
-case"condition":return `IF {{${f.variable}}} ${f.operator} "${f.value}"`;
-case"input":return `Save reply → {{${f.variable}}}`;
-case"variable":return `{{${f.name}}} = ${f.value}`;
-case"label":return `Label: ${f.label}`;
-case"wait":return `${f.seconds||0} seconds`;
-case"api":return `${f.method} ${f.url}`;
-case"template":return `${f.name} (${f.language})`;
-case"human":return `Team: ${f.team}`;
-default:return dflt(n);
-}}
-function dflt(n){return defs[n.type].body}
+const NAV=[
+ ["OVERVIEW","Dashboard", "▦"],["","Shared Inbox","▣"],["","Contacts","◉"],
+ ["WHATSAPP","Connect Account","⌁"],["","Bot Builder","⌘"],["","WhatsApp Flows","▱"],
+ ["AUTOMATION","Templates","▤"],["","Sequences","◌"],["","Broadcast","⌁"],["","Labels","🏷"],["","Custom Fields","≡"],
+ ["COMMERCE","Product Catalog","🛒"],["","Orders","▣"],["","Appointments","◷"],
+ ["AI","AI Agent","✦"],["","Knowledge Base","▤"],
+ ["INSIGHTS","Analytics","◔"],["","Logs","≋"],
+ ["DEVELOPER","API & Webhooks","⇄"],["","Integrations","⊞"],
+ ["SYSTEM","Team & Roles","♙"],["","Settings","⚙"]
+];
+const view=$("#view"), nav=$("#nav"), state={page:"Bot Builder",nodes:[],edges:[],sel:null,next:1,zoom:1};
+function toast(t){let e=$("#toast");e.textContent=t;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),1700)}
 function esc(s){return String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]))}
-function wireDrag(el,n){
- let sx,sy,ox,oy,moving=false;
- el.addEventListener("pointerdown",e=>{if(e.target.classList.contains("port"))return;sx=e.clientX;sy=e.clientY;ox=n.x;oy=n.y;moving=true;el.setPointerCapture(e.pointerId);state.selected=n.id;});
- el.addEventListener("pointermove",e=>{if(!moving)return;n.x=ox+(e.clientX-sx)/state.zoom;n.y=oy+(e.clientY-sy)/state.zoom;el.style.left=n.x+"px";el.style.top=n.y+"px";drawEdges();});
- el.addEventListener("pointerup",()=>{moving=false;renderInspector()});
- el.addEventListener("click",e=>{if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)<5){state.selected=n.id;render()}});
- el.querySelectorAll(".port.out").forEach(p=>p.addEventListener("pointerdown",e=>startConnect(e,n,p.dataset.branch||"default")));
- el.querySelectorAll(".port.in").forEach(p=>p.addEventListener("pointerup",e=>finishConnect(e,n)));
+function renderNav(){let last="";nav.innerHTML="";NAV.forEach(([group,name,icon])=>{if(group&&group!==last){let d=document.createElement("div");d.className="navTitle";d.textContent=group;nav.appendChild(d);last=group}let b=document.createElement("button");b.className="navItem "+(state.page===name?"active":"");b.innerHTML=`<span>${icon}</span>${name}${name==="Shared Inbox"?'<span class="badge">4</span>':""}`;b.onclick=()=>{state.page=name;render()};nav.appendChild(b)})}
+function top(title,sub,actions=""){return `<header class="top"><div class="title"><h1>${title}</h1><p>${sub||""}</p></div><div class="actions">${actions||'<button class="btn">⋯</button>'}</div></header>`}
+function btn(t,c="btn"){return `<button class="${c}">${t}</button>`}
+function dashboard(){return top("Overview","WhatsApp automation at a glance",btn("＋ Create Bot","btn primary"))+`<div class="content"><div class="grid cards">
+${stat("Active Contacts","12,842","+8.4%")}${stat("Messages Today","4,291","+12.7%")}${stat("Active Flows","18","+2")}${stat("Human Handoffs","37","-4.1%")}
+</div><div class="section"><h2>Recent activity</h2><table class="table"><tr><th>Event</th><th>Contact</th><th>Flow</th><th>Status</th></tr>
+<tr><td>Flow completed</td><td>+91 98•••••21</td><td>Lead Capture</td><td><span class="pill">Success</span></td></tr>
+<tr><td>Human handoff</td><td>+91 97•••••42</td><td>Support</td><td><span class="pill">Assigned</span></td></tr>
+<tr><td>Template sent</td><td>+91 90•••••08</td><td>Order Update</td><td><span class="pill">Delivered</span></td></tr></table></div>
+<div class="section grid" style="grid-template-columns:1.4fr 1fr"><div class="card"><h2>Message performance</h2><div style="height:150px;display:flex;align-items:end;gap:8px">${[45,65,38,78,60,88,72,94,68,83,55,90].map(x=>`<i style="height:${x}%;flex:1;background:#146b72;border-radius:4px 4px 0 0"></i>`).join("")}</div></div><div class="card"><h2>WhatsApp account</h2><p class="muted">GAMAV Business</p><p><span class="pill">● Connected</span></p><p class="muted">Messaging quality: High</p><button class="btn">Manage account</button></div></div></div>`}
+function stat(a,b,c){return `<div class="card"><div class="muted">${a}</div><div class="stat">${b}</div><div class="up">${c}</div></div>`}
+function inbox(){return top("Shared Inbox","Manage conversations, bots and agents",btn("＋ Add Contact","btn primary"))+`<div class="inbox"><div class="chatList"><input class="search" placeholder="Search conversations…">${["Arun Kumar","Priya S","GAMAV Store","Rahul"].map((x,i)=>`<div class="chat ${i===0?"active":""}"><b>${x}</b><p>${i===0?"Hi, I need help with my order":"Last message preview…"}</p></div>`).join("")}</div><div style="display:flex;flex-direction:column"><div class="messages"><div class="bubble in">Hi, I need help with my order.</div><div class="bubble out">Sure! Please share your order ID.</div><div class="bubble in">GM10245</div><div class="bubble out">Thanks. I'm checking that now…</div></div><div class="composer"><input placeholder="Type a message…"><button class="btn">＋</button><button class="btn primary">Send</button></div></div><div class="chatInfo"><div class="insHead"><b>Customer Snapshot</b></div><div class="field"><label>CONTACT</label><b>Arun Kumar</b><p class="muted">+91 98•••••21</p></div><div class="field"><label>LABELS</label><span class="pill">Lead</span> <span class="pill">VIP</span></div><div class="field"><label>BOT STATUS</label><p>● Active</p><button class="btn">Pause Bot</button></div><div class="field"><label>ASSIGN AGENT</label><select><option>GAMAV Admin</option><option>Support Team</option></select></div><div class="field"><label>QUICK ACTIONS</label><button class="btn">Schedule Follow-up</button><button class="btn">Add Note</button><button class="btn">Start Flow</button></div></div></div>`}
+const defs={
+trigger:["⚡","Start Bot Flow",{keywords:"hi,hello,start",match:"string",title:"Welcome Flow",label:"Lead",sequence:""}],
+text:["💬","Text Message",{text:"Hello {{first_name}}! Welcome to GAMAV."}],
+image:["🖼","Image / Media",{url:"https://example.com/image.jpg",caption:"Welcome image"}],
+interactive:["🔘","Interactive Buttons",{text:"How can we help?",buttons:"Sales|Support|Pricing"}],
+list:["☷","List / Menu",{title:"Main Menu",rows:"Products|Support|Contact us"}],
+condition:["◇","If / Else Condition",{rule:"{{intent}} equals sales"}],
+input:["⌨","User Input",{question:"What is your order ID?",saveAs:"order_id",type:"text"}],
+variable:["≡","Custom Field",{name:"customer_type",value:"lead"}],
+label:["🏷","Assign Label",{label:"Hot Lead",action:"add"}],
+wait:["◷","Wait / Delay",{duration:"5",unit:"seconds"}],
+api:["⇄","HTTP API / Webhook",{method:"GET",url:"https://api.example.com/orders/{{order_id}}"}],
+template:["▤","WhatsApp Template",{name:"order_update",language:"en"}],
+catalog:["🛒","Product Catalog",{catalog:"GAMAV Store",mode:"multiple"}],
+ai:["✦","AI Agent",{agent:"Sales Agent",instruction:"Answer from knowledge base"}],
+human:["👤","Human / Team Handoff",{team:"Support",reason:"Customer requested human"}],
+end:["⏹","End Flow",{}]
+};
+function addNode(type,x,y){let d=defs[type],n={id:"n"+state.next++,type,x,y,fields:JSON.parse(JSON.stringify(d[2]))};state.nodes.push(n);state.sel=n.id;renderBuilder();return n}
+function summary(n){let f=n.fields;return Object.values(f).filter(Boolean).join(" · ")||"Flow complete"}
+function renderBuilder(){
+let actions=btn("Import JSON","btn")+btn("Export JSON","btn")+btn("Save","btn primary");
+view.innerHTML=top("Bot Builder","Visual WhatsApp automation flow",actions)+`<div class="builder"><aside class="palette"><div class="palHead"><input id="nodeSearch" class="search" placeholder="Search nodes…"></div><div id="nodeList"></div></aside><div class="canvasWrap" id="cw"><div class="canvas" id="canvas"><svg class="edges" id="edges"></svg><div id="nodes"></div></div><div class="canvasBar"><div class="toolBox"><button onclick="addNode('trigger',140,150)">＋ Trigger</button><button onclick="addNode('text',440,150)">＋ Text</button><button onclick="fit()">Fit</button></div><div class="toolBox"><button onclick="zoom(-.1)">−</button><button id="z">100%</button><button onclick="zoom(.1)">＋</button></div></div><div class="bottomHint">Drag nodes • Drag ● connector to join • Double-click connection to delete • Right-click canvas for node menu</div></div><aside class="inspector"><div class="insHead"><b>Node Configuration</b></div><div id="ins"></div></aside></div>`;
+renderPalette();renderNodes();renderInspector();
+$("#nodeSearch").oninput=e=>renderPalette(e.target.value);
+view.querySelectorAll(".btn.primary")[0]?.addEventListener("click",()=>{localStorage.setItem("gamavFlow",JSON.stringify(state));toast("Flow saved ✓")});
 }
-let connection=null;
-function startConnect(e,n,branch){e.stopPropagation();connection={from:n.id,branch};document.body.style.cursor="crosshair"}
-function finishConnect(e,n){e.stopPropagation();if(connection&&connection.from!==n.id){state.edges.push({from:connection.from,to:n.id,branch:connection.branch});toast("Nodes connected ✓");}connection=null;document.body.style.cursor="";render()}
-document.addEventListener("pointerup",e=>{if(connection){connection=null;document.body.style.cursor=""}})
-function drawEdges(){
- const svg=$("#edges");svg.innerHTML="";
- state.edges.forEach(edge=>{const a=nodeBy(edge.from),b=nodeBy(edge.to);if(!a||!b)return;
-  const x1=a.x+235,y1=a.y+47+(edge.branch==="yes"?-15:edge.branch==="no"?18:0),x2=b.x,y2=b.y+47;
-  const dx=Math.max(55,(x2-x1)*.5);const path=`M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
-  svg.innerHTML+=`<path class="edgeHit" d="${path}" data-edge="${edge.from}:${edge.to}:${edge.branch}"/><path class="edge" d="${path}"/>`;
- });
- $$(".edgeHit").forEach(e=>e.addEventListener("dblclick",()=>{const [f,t,b]=e.dataset.edge.split(":");state.edges=state.edges.filter(x=>!(x.from===f&&x.to===t&&x.branch===b));drawEdges();toast("Connection removed")}));
-}
-function renderInspector(){
- const n=nodeBy(state.selected), empty=$("#emptyInspector"), form=$("#inspectorForm");
- if(!n){empty.hidden=false;form.hidden=true;return}
- empty.hidden=true;form.hidden=false;const d=defs[n.type];
- let html=`<div style="font-size:18px;font-weight:800;margin-bottom:4px">${d.icon} ${d.title}</div><div style="font-size:11px;color:#637c8b;margin-bottom:12px">Node ID: ${n.id}</div>`;
- Object.entries(n.fields).forEach(([k,v])=>{
-   const label=k.replace(/^\w/,x=>x.toUpperCase()).replaceAll("_"," ");
-   const isLong=String(v).length>55||k==="text"||k==="body"||k==="prompt";
-   html+=`<div class="field"><label>${label}</label>${isLong?`<textarea data-field="${k}">${esc(v)}</textarea>`:`<input data-field="${k}" value="${esc(v)}">`}</div>`;
- });
- if(n.type==="condition")html+=`<div class="field"><label>Connections</label><div style="font-size:11px;color:#6f8896">Blue = YES • Orange = NO</div></div>`;
- html+=`<div class="inspectorActions"><button id="deleteNode" class="topActions button danger">Delete</button></div>`;
- form.innerHTML=html;
- form.querySelectorAll("[data-field]").forEach(inp=>inp.addEventListener("input",()=>{n.fields[inp.dataset.field]=inp.value;render()}));
- $("#deleteNode").onclick=()=>removeNode(n.id);
-}
-$$(".addNode").forEach(b=>b.addEventListener("click",()=>addNode(b.dataset.type)));
-$("#saveBtn").onclick=()=>{localStorage.setItem("gamavFlow",JSON.stringify(state));toast("Bot saved locally ✓")};
-$("#loadBtn").onclick=()=>{const s=localStorage.getItem("gamavFlow");if(!s)return toast("No saved bot found");Object.assign(state,JSON.parse(s));render();toast("Bot loaded ✓")};
-$("#newBtn").onclick=()=>{if(confirm("Start a new bot?")){state.nodes=[];state.edges=[];state.selected=null;state.nextId=1;addNode("trigger",160,180);addNode("text",470,180);render();}};
-$("#testBtn").onclick=()=>{const trigger=state.nodes.find(n=>n.type==="trigger");toast(trigger?`Test started: "${trigger.fields.keyword}"`:"Add a Trigger first")};
-$("#zoomIn").onclick=()=>zoom(1.1);$("#zoomOut").onclick=()=>zoom(.9);$("#fitBtn").onclick=()=>{state.zoom=1;render();};
-function zoom(v){state.zoom=Math.max(.5,Math.min(1.7,state.zoom*v));$("#canvas").style.transform=`scale(${state.zoom})`;$("#zoomLabel").textContent=Math.round(state.zoom*100)+"%";drawEdges()}
-$("#canvasWrap").addEventListener("wheel",e=>{if(e.ctrlKey){e.preventDefault();zoom(e.deltaY<0?1.1:.9)}},{passive:false});
-function init(){const saved=localStorage.getItem("gamavFlow");if(saved){try{Object.assign(state,JSON.parse(saved))}catch{}}if(!state.nodes.length){addNode("trigger",130,160);const t=addNode("text",440,160);state.edges.push({from:"n1",to:t.id,branch:"default"});const c=addNode("condition",750,160);state.edges.push({from:t.id,to:c.id,branch:"default"});addNode("human",1080,110);addNode("end",1080,300)}render()}
-init();
+function renderPalette(q=""){let list=$("#nodeList");list.innerHTML="";let groups={TRIGGERS:["trigger"],MESSAGES:["text","image","interactive","list","template"],LOGIC:["condition","input","variable","label","wait"],INTEGRATIONS:["api","catalog"],AI & HANDOFF:["ai","human","end"]};Object.entries(groups).forEach(([g,types])=>{let wrap=document.createElement("div");wrap.className="group";wrap.innerHTML=`<div class="groupTitle">${g}</div>`;types.filter(t=>(defs[t][1]+defs[t][0]).toLowerCase().includes(q.toLowerCase())).forEach(t=>{let b=document.createElement("button");b.className="nodeBtn";b.textContent=defs[t][0]+"  "+defs[t][1];b.onclick=()=>addNode(t,180+state.nodes.length*30,140+state.nodes.length*20);wrap.appendChild(b)});list.appendChild(wrap)})}
+function renderNodes(){let holder=$("#nodes");if(!holder)return;holder.innerHTML="";state.nodes.forEach(n=>{let d=defs[n.type],e=document.createElement("div");e.className="node "+(state.sel===n.id?"sel":"");e.style.left=n.x+"px";e.style.top=n.y+"px";e.dataset.id=n.id;e.innerHTML=`<div class="nodeHead"><span>${d[0]} ${d[1]}</span><span style="color:#526d7a">${n.id}</span></div><div class="nodeBody">${esc(summary(n))}</div>${n.type!=="trigger"?'<i class="port pin"></i>':''}${n.type==="condition"?'<i class="port branchYes" data-branch="yes"></i><i class="port branchNo" data-branch="no"></i>':n.type!=="end"?'<i class="port pout" data-branch="default"></i>':''}`;holder.appendChild(e);dragNode(e,n);e.querySelectorAll(".pout,.branchYes,.branchNo").forEach(p=>p.onpointerdown=ev=>{ev.stopPropagation();connect={from:n.id,branch:p.dataset.branch}});e.querySelector(".pin")?.addEventListener("pointerup",ev=>{ev.stopPropagation();if(connect&&connect.from!==n.id){state.edges.push({from:connect.from,to:n.id,branch:connect.branch});connect=null;renderBuilder();toast("Connected ✓")}});e.onclick=()=>{state.sel=n.id;renderInspector();renderNodes()}});draw()}
+let connect=null;
+function dragNode(el,n){let sx,sy,ox,oy,move=false;el.onpointerdown=e=>{if(e.target.classList.contains("port"))return;sx=e.clientX;sy=e.clientY;ox=n.x;oy=n.y;move=true;el.setPointerCapture(e.pointerId)};el.onpointermove=e=>{if(!move)return;n.x=ox+(e.clientX-sx)/state.zoom;n.y=oy+(e.clientY-sy)/state.zoom;el.style.left=n.x+"px";el.style.top=n.y+"px";draw()};el.onpointerup=()=>{move=false}}
+function draw(){let s=$("#edges");if(!s)return;s.innerHTML="";state.edges.forEach((ed,i)=>{let a=state.nodes.find(n=>n.id===ed.from),b=state.nodes.find(n=>n.id===ed.to);if(!a||!b)return;let y1=a.y+48+(ed.branch==="yes"?-16:ed.branch==="no"?18:0),x1=a.x+245,x2=b.x,y2=b.y+48,dx=Math.max(60,(x2-x1)/2),p=`M${x1} ${y1} C${x1+dx} ${y1},${x2-dx} ${y2},${x2} ${y2}`;s.innerHTML+=`<path class="edge hit" data-i="${i}" d="${p}"/><path class="edge" d="${p}"/>`});s.querySelectorAll(".hit").forEach(e=>e.ondblclick=()=>{state.edges.splice(+e.dataset.i,1);draw()})}
+function renderInspector(){let n=state.nodes.find(x=>x.id===state.sel),box=$("#ins");if(!box)return;if(!n){box.innerHTML='<div class="field muted">Select a node to configure it.</div>';return}let d=defs[n.type];box.innerHTML=`<div class="field"><b>${d[0]} ${d[1]}</b><p class="muted">${n.id}</p></div>`+Object.entries(n.fields).map(([k,v])=>`<div class="field"><label>${k.replaceAll("_"," ").toUpperCase()}</label>${String(v).length>55?`<textarea data-k="${k}">${esc(v)}</textarea>`:`<input data-k="${k}" value="${esc(v)}">`}</div>`).join("")+`<div class="insActions"><button class="btn primary" id="apply">Apply</button><button class="btn danger" id="del">Delete</button></div>`;
+box.querySelectorAll("[data-k]").forEach(x=>x.oninput=()=>n.fields[x.dataset.k]=x.value);$("#apply").onclick=()=>{renderBuilder();toast("Node updated ✓")};$("#del").onclick=()=>{state.nodes=state.nodes.filter(x=>x.id!==n.id);state.edges=state.edges.filter(x=>x.from!==n.id&&x.to!==n.id);state.sel=null;renderBuilder()}}
+function zoom(v){state.zoom=Math.max(.5,Math.min(1.8,state.zoom+v));$("#canvas").style.transform=`scale(${state.zoom})`;$("#z").textContent=Math.round(state.zoom*100)+"%";draw()}
+function fit(){state.zoom=1;$("#canvas").style.transform="scale(1)";$("#z").textContent="100%";draw()}
+function builderInit(){if(!state.nodes.length){let a=addNode("trigger",130,160),b=addNode("text",450,160),c=addNode("condition",770,160),d=addNode("human",1100,110),e=addNode("end",1100,310);state.edges=[{from:a.id,to:b.id,branch:"default"},{from:b.id,to:c.id,branch:"default"},{from:c.id,to:d.id,branch:"yes"},{from:c.id,to:e.id,branch:"no"}]}}
+function generic(title,sub,rows){view.innerHTML=top(title,sub,btn("＋ Create","btn primary"))+`<div class="content"><div class="tabs"><button class="tab active">All</button><button class="tab">Active</button><button class="tab">Drafts</button><button class="tab">Archived</button></div><table class="table"><tr><th>Name</th><th>Status</th><th>Updated</th><th>Actions</th></tr>${rows.map(r=>`<tr><td><b>${r}</b></td><td><span class="pill">Active</span></td><td>Today</td><td>•••</td></tr>`).join("")}</table></div>`}
+function settings(){view.innerHTML=top("Settings","Workspace, WhatsApp, team and security",btn("Save Changes","btn primary"))+`<div class="content"><div class="settingsGrid"><div class="settingNav">${["General","WhatsApp Account","Business Profile","Business Hours","Notifications","Team & Roles","API & Webhooks","Security","Billing"].map((x,i)=>`<button class="${i===0?"active":""}">${x}</button>`).join("")}</div><div class="formCard"><h2 style="font-size:15px">General Settings</h2><p class="muted">Configure the workspace defaults.</p><div class="field"><label>WORKSPACE NAME</label><input value="GAMAV WhatsApp"></div><div class="field"><label>TIMEZONE</label><select><option>Asia/Kolkata (IST)</option><option>UTC</option></select></div><div class="field"><label>DEFAULT LANGUAGE</label><select><option>English</option><option>Tamil</option></select></div>${["Enable message logs","Notify agents for assigned chats","Enable flow versioning","Require 2FA for admins"].map((x,i)=>`<div class="switch"><span>${x}</span><span class="toggle ${i<3?"on":""}"><i></i></span></div>`).join("")}</div></div></div>`}
+function connect(){view.innerHTML=top("Connect Account","WhatsApp Business Platform connection",btn("＋ Connect New Account","btn primary"))+`<div class="content"><div class="card"><h2 style="font-size:15px">GAMAV Business WhatsApp</h2><p class="muted">Phone • +91 ••••••3210</p><span class="pill">● Connected</span><hr style="border:0;border-top:1px solid #18313d;margin:15px 0"><div class="grid" style="grid-template-columns:repeat(3,1fr)"><div><span class="muted">Quality</span><p>High</p></div><div><span class="muted">Messaging</span><p>Cloud API</p></div><div><span class="muted">Webhooks</span><p>Verified</p></div></div><button class="btn">Profile Settings</button> <button class="btn">Webhook Settings</button></div><div class="section card"><h2 style="font-size:14px">Credentials</h2><p class="muted">Sensitive tokens are masked in the UI and should remain server-side.</p><div class="field"><label>PHONE NUMBER ID</label><input value="••••••••••••3210" readonly></div><div class="field"><label>ACCESS TOKEN</label><input value="••••••••••••••••••••" readonly></div></div></div>`}
+function render(){renderNav();if(state.page==="Overview")view.innerHTML=dashboard();else if(state.page==="Shared Inbox")view.innerHTML=inbox();else if(state.page==="Bot Builder"){builderInit();renderBuilder()}else if(state.page==="Connect Account")connect();else if(state.page==="Settings")settings();else if(state.page==="WhatsApp Flows")generic("WhatsApp Flows","Multi-screen interactive WhatsApp experiences",["Lead Capture Flow","Appointment Booking","Customer Support"]);else if(state.page==="AI Agent")generic("AI Agent","Knowledge, prompts and autonomous actions",["Sales Agent","Support Agent","Order Assistant"]);else if(state.page==="Knowledge Base")generic("Knowledge Base","Train AI with FAQs, URLs, files, Sheets and APIs",["Product & Pricing","Support Docs"]);else if(state.page==="Product Catalog")generic("Product Catalog","Products, collections and WhatsApp commerce",["GAMAV Store"]);else generic(state.page,"Manage your WhatsApp automation workspace",["Welcome Flow","Order Update","Support Flow"])}
+$("#menuBtn").onclick=()=>$(".side").classList.toggle("open");$("#mobileSave").onclick=()=>toast("Saved ✓");
+render();
