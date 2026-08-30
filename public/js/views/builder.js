@@ -84,4 +84,3 @@ export function init(store){
  renderPaletteSafe();draw();
  function renderPaletteSafe(){palette("")}
 }
-
