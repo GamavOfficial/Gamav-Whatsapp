@@ -1,0 +1,20 @@
+name: Deploy GAMAV WhatsApp frontend
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./public
+      - uses: actions/deploy-pages@v4
