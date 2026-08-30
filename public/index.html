@@ -1,82 +1,27 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>GAMAV WhatsApp — Advanced Bot Builder</title>
-<link rel="stylesheet" href="./style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07131d"><title>GAMAV WhatsApp Pro</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
-  <aside class="sidebar">
-    <div class="brand"><div class="brandIcon">G</div><div><b>GAMAV</b><span>WhatsApp</span></div></div>
-    <nav>
-      <button class="nav active">⌘ <span>Bot Builder</span></button>
-      <button class="nav">▣ <span>Inbox</span></button>
-      <button class="nav">◉ <span>Contacts</span></button>
-      <button class="nav">▤ <span>Templates</span></button>
-      <button class="nav">⌁ <span>Campaigns</span></button>
-      <button class="nav">◌ <span>Analytics</span></button>
-      <button class="nav">⌘ <span>Developers</span></button>
-      <button class="nav">⚙ <span>Settings</span></button>
-    </nav>
+  <aside class="side">
+    <div class="logo"><div class="logoBox">G</div><div><b>GAMAV</b><small>WHATSAPP PRO</small></div></div>
+    <div class="account"><span class="dot"></span><div><b>GAMAV Business</b><small>WhatsApp · Connected</small></div><span>⌄</span></div>
+    <nav id="nav"></nav>
+    <div class="sideBottom"><button>❔ Help Center</button><button>⚙ Settings</button><div class="user"><div class="avatar">G</div><div><b>GAMAV Admin</b><small>Owner</small></div></div></div>
   </aside>
 
   <main class="main">
-    <header class="topbar">
-      <div>
-        <h1>Bot Builder</h1>
-        <p>Build WhatsApp automation flows visually</p>
-      </div>
-      <div class="topActions">
-        <button id="newBtn" class="ghost">＋ New</button>
-        <button id="loadBtn" class="ghost">Load</button>
-        <button id="saveBtn" class="primary">Save Bot</button>
-        <button id="testBtn" class="test">▶ Test</button>
-      </div>
-    </header>
-
-    <section class="workspace">
-      <aside class="palette">
-        <div class="sectionTitle">NODE PALETTE</div>
-        <button class="addNode" data-type="trigger">⚡ Trigger</button>
-        <button class="addNode" data-type="text">＋ Text</button>
-        <button class="addNode" data-type="image">＋ Image / URL</button>
-        <button class="addNode" data-type="buttons">＋ Buttons / URL</button>
-        <button class="addNode" data-type="list">＋ List</button>
-        <button class="addNode" data-type="condition">＋ Condition</button>
-        <button class="addNode" data-type="input">＋ User Input</button>
-        <button class="addNode" data-type="variable">＋ Set Variable</button>
-        <button class="addNode" data-type="label">＋ Assign Label</button>
-        <button class="addNode" data-type="wait">＋ Wait</button>
-        <button class="addNode" data-type="api">＋ API / Webhook</button>
-        <button class="addNode" data-type="template">＋ Template</button>
-        <button class="addNode" data-type="human">＋ Human Handoff</button>
-        <button class="addNode" data-type="end">⏹ End</button>
-        <div class="tip">Tap a node to add it. Drag nodes to arrange. Drag a connector dot to another node to join the flow.</div>
-      </aside>
-
-      <div class="canvasWrap" id="canvasWrap">
-        <div id="canvas" class="canvas">
-          <svg id="edges" class="edges"></svg>
-          <div id="nodes"></div>
-        </div>
-        <div class="canvasTools">
-          <button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button>
-          <button id="fitBtn">Fit</button>
-        </div>
-        <div class="miniHint">Flow: Trigger → Message → Condition → Action → End</div>
-      </div>
-
-      <aside class="inspector">
-        <div class="sectionTitle">NODE EDITOR</div>
-        <div id="emptyInspector" class="empty">Select a node to edit its content, variables, buttons and behavior.</div>
-        <div id="inspectorForm" hidden></div>
-      </aside>
-    </section>
+    <header class="mobileTop"><button id="menuBtn">☰</button><b>GAMAV WhatsApp</b><button id="mobileSave">✓</button></header>
+    <section id="view"></section>
   </main>
 </div>
+
+<div id="modal" class="modal"><div class="modalBox"><button class="close" onclick="closeModal()">×</button><div id="modalContent"></div></div></div>
 <div id="toast" class="toast"></div>
-<script src="./app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
